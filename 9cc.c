@@ -104,6 +104,7 @@ char *reserved_words_alnum[] = {
     "return",
     "if",
     "else",
+    "while",
 };
 
 int reserved_len(char *p)
@@ -113,7 +114,7 @@ int reserved_len(char *p)
             return strlen(reserved_words[i]);
         }
     }
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         if (!memcmp(p, reserved_words_alnum[i], strlen(reserved_words_alnum[i]))
             && !is_alnum(p[strlen(reserved_words_alnum[i])])) {
             return strlen(reserved_words_alnum[i]);
@@ -122,7 +123,7 @@ int reserved_len(char *p)
     return 0;
 }
 
-// 入力文字列pをトークナイズしてそれを返す
+// user_inputをトークナイズしてそれを返す
 Token *tokenize() {
     char *p = user_input;
     Token head;
@@ -231,6 +232,14 @@ Node *stmt() {
         }
 
         node = new_node(ND_IF, condition, node);
+    } else if (consume("while")) {
+        consume("(");
+
+        Node *condition = expr();
+
+        consume(")");
+
+        node = new_node(ND_WHILE, condition, stmt());
     } else {
         node = expr();
         expect(";");
@@ -359,12 +368,12 @@ void gen_lval(Node *node) {
     printf("  push rax\n");
 }
 
-int Lend = 0;
-int Lelse = 0;
-
 void gen(Node *node) {
-    int LendNow = Lend;
-    int LelseNow = Lelse;
+    int LIfEndNow = LIfEnd;
+    int LElseNow = LElse;
+    int LWhileBeginNow = LWhileBegin;
+    int LWhileEndNow = LWhileEnd;
+
     switch (node->kind) {
     case ND_NUM:
         printf("  push %d\n", node->val);
@@ -391,25 +400,37 @@ void gen(Node *node) {
         printf("  ret\n");
         return;
     case ND_IF:
-        Lend++;
+        LIfEnd++;
         gen(node->lhs);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         if (node->rhs->kind == ND_ELSE) {
             gen(node->rhs);
         } else {
-            printf("  je .Lend%d\n", LendNow);
-            gen(node->rhs); 
+            printf("  je .LIfEnd%d\n", LIfEndNow);
+            gen(node->rhs);
         }
-        printf(".Lend%d:\n", LendNow);
+        printf(".LIfEnd%d:\n", LIfEndNow);
         return;
     case ND_ELSE:
-        Lelse++;
-        printf("  je .Lelse%d\n", LelseNow);
+        LElse++;
+        printf("  je .LElse%d\n", LElseNow);
         gen(node->lhs);
-        printf("  jmp .Lend%d\n", LendNow - 1);
-        printf(".Lelse%d:\n", LelseNow);
+        printf("  jmp .LIfEnd%d\n", LIfEndNow - 1);
+        printf(".LElse%d:\n", LElseNow);
         gen(node->rhs);
+        return;
+    case ND_WHILE:
+        LWhileBegin++;
+        LWhileEnd++;
+        printf(".LWhileBegin%d:\n", LWhileBeginNow);
+        gen(node->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je .LWhileEnd%d\n", LWhileEndNow);
+        gen(node->rhs);
+        printf("  jmp .LWhileBegin%d\n", LWhileBeginNow);
+        printf(".LWhileEnd%d:\n", LWhileEndNow);
         return;
     }
 
@@ -466,7 +487,7 @@ int main(int argc, char **argv) {
 
     // トークナイズする
     user_input = argv[1];
-    token = tokenize();     
+    token = tokenize();
     program();
 
     // アセンブリの前半部分を出力

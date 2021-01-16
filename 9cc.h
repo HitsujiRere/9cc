@@ -59,6 +59,7 @@ typedef enum {
     ND_RETURN, // return
     ND_IF,     // if
     ND_ELSE,   // else
+    ND_WHILE,  // while
 } NodeKind;
 
 typedef struct Node Node;
@@ -84,3 +85,8 @@ Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
+
+int LIfEnd = 0;
+int LElse = 0;
+int LWhileBegin = 0;
+int LWhileEnd = 0;
