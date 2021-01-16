@@ -359,7 +359,12 @@ void gen_lval(Node *node) {
     printf("  push rax\n");
 }
 
+int Lend = 0;
+int Lelse = 0;
+
 void gen(Node *node) {
+    int LendNow = Lend;
+    int LelseNow = Lelse;
     switch (node->kind) {
     case ND_NUM:
         printf("  push %d\n", node->val);
@@ -386,22 +391,24 @@ void gen(Node *node) {
         printf("  ret\n");
         return;
     case ND_IF:
+        Lend++;
         gen(node->lhs);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         if (node->rhs->kind == ND_ELSE) {
             gen(node->rhs);
         } else {
-            printf("  je .Lend000\n");
+            printf("  je .Lend%d\n", LendNow);
             gen(node->rhs); 
         }
-        printf(".Lend000:\n");
+        printf(".Lend%d:\n", LendNow);
         return;
     case ND_ELSE:
-        printf("  je .Lelse000\n");
+        Lelse++;
+        printf("  je .Lelse%d\n", LelseNow);
         gen(node->lhs);
-        printf("  jmp .Lend000\n");
-        printf(".Lelse000:\n");
+        printf("  jmp .Lend%d\n", LendNow - 1);
+        printf(".Lelse%d:\n", LelseNow);
         gen(node->rhs);
         return;
     }
