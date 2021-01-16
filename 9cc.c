@@ -102,6 +102,8 @@ char *reserved_words[] = {
 
 char *reserved_words_alnum[] = {
     "return",
+    "if",
+    "else",
 };
 
 int reserved_len(char *p)
@@ -111,7 +113,7 @@ int reserved_len(char *p)
             return strlen(reserved_words[i]);
         }
     }
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 3; i++) {
         if (!memcmp(p, reserved_words_alnum[i], strlen(reserved_words_alnum[i]))
             && !is_alnum(p[strlen(reserved_words_alnum[i])])) {
             return strlen(reserved_words_alnum[i]);
@@ -152,9 +154,9 @@ Token *tokenize() {
             continue;
         }
 
-        if ('a' <= *p && *p <= 'z') {
+        if ('a' <= *p && *p <= 'z' || 'A' <= *p && *p <= 'Z') {
             int i = 1;
-            while('a' <= *(p + i) && *(p + i) <= 'z')
+            while(is_alnum(*(p + i)))
             {
                 i++;
             }
@@ -169,7 +171,6 @@ Token *tokenize() {
     new_token(TK_EOF, cur, p, 0);
     return head.next;
 }
-
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
@@ -207,16 +208,33 @@ void program() {
 
 // stmt = expr ";"
 //      | "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt() {
     Node *node;
 
     if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
+        expect(";");
+    } else if (consume("if")) {
+        consume("(");
+
+        Node *condition = expr();
+
+        consume(")");
+
+        node = stmt();
+
+        if (consume("else")) {
+            node = new_node(ND_ELSE, node, stmt());
+        }
+
+        node = new_node(ND_IF, condition, node);
     } else {
         node = expr();
+        expect(";");
     }
-
-    expect(";");
 
     return node;
 }
@@ -366,6 +384,25 @@ void gen(Node *node) {
         printf("  mov rsp, rbp\n");
         printf("  pop rbp\n");
         printf("  ret\n");
+        return;
+    case ND_IF:
+        gen(node->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        if (node->rhs->kind == ND_ELSE) {
+            gen(node->rhs);
+        } else {
+            printf("  je .Lend000\n");
+            gen(node->rhs); 
+        }
+        printf(".Lend000:\n");
+        return;
+    case ND_ELSE:
+        printf("  je .Lelse000\n");
+        gen(node->lhs);
+        printf("  jmp .Lend000\n");
+        printf(".Lelse000:\n");
+        gen(node->rhs);
         return;
     }
 

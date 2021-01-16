@@ -40,5 +40,13 @@ assert 13 "z=6;y=19;x=y-z;"
 assert 21 "foo=14;bar=foo/2;foobar=bar+foo;"
 assert 10 "return 10;return 20;"
 assert 56 "returnx=7;returnreturn=returnx*8;return returnreturn;"
+assert 5 "if(1)return 5;return 7;"
+assert 7 "if(0)return 5;return 7;"
+assert 5 "if(1)return 5;else return 7;"
+assert 7 "if(0)return 5;else return 7;"
+assert 8 "ifif=10;if(ifif==10)return 8;return 7;"
+assert 7 "ifif=10;if(ifif==13)return 8;return 7;"
+assert 8 "ifif=10;if(ifif==10)return 8;else return 7;"
+assert 7 "ifif=10;if(ifif==13)return 8;else return 7;"
 
 echo OK
