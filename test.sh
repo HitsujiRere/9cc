@@ -4,7 +4,7 @@ assert() {
   input="$2"
 
   ./9cc "$input" > tmp.s
-  cc -o tmp tmp.s
+  cc -o tmp tmp.s 9cclib.o
   ./tmp
   actual="$?"
 
@@ -80,5 +80,9 @@ assert 10 "{return 10; return 20;}"
 assert 10 "a=7;{}a=10;return a;"
 assert 10 "a=7;{a=10;}return a;"
 assert 233 "f1=1;f2=1;for(i=0;i<11;i=i+1){tmp=f1;f1=f1+f2;f2=tmp;}return f1;"
+assert 1 "hello();return 1;"
+assert 33 "return ret33();"
+assert 14 "return multi2(7);"
+assert 21 "return sum(1,2,3,4,5,6);"
 
 echo OK

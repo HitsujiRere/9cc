@@ -31,6 +31,10 @@ bool consume(char *op) {
     return true;
 }
 
+bool consumeToken(Token* token, char *op) {
+    return !(token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len));
+}
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 void expect(char* op) {
@@ -93,21 +97,6 @@ bool startwith(char *p, char* q)
     return memcmp(p, q, strlen(q)) == 0;
 }
 
-char *reserved_words[] = {
-    "==",
-    "!=",
-    "<=",
-    ">=",
-};
-
-char *reserved_words_alnum[] = {
-    "return",
-    "if",
-    "else",
-    "while",
-    "for",
-};
-
 int get_reserved_len(char *p)
 {
     for (int i = 0; i < 4; i++) {
@@ -145,7 +134,7 @@ Token *tokenize() {
             continue;
         }
 
-        if (strchr("+-*/()<>=;{}", *p)) {
+        if (strchr("+-*/()<>=;{},", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
@@ -193,6 +182,14 @@ Node *new_node_ident(int offset) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_LVAR;
     node->offset = offset;
+    return node;
+}
+
+Node *new_node_func(Token* func) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNC;
+    node->str = func->str;
+    node->len = func->len;
     return node;
 }
 
@@ -366,7 +363,9 @@ Node* unary() {
     return primary();
 }
 
-// primary = num | ident | "(" expr ")"
+// primary = num
+//         | ident ("(" primary* ")")?
+//         | "(" expr ")"
 Node *primary() {
     // fprintf(stderr, "primary()1 token->kind = %d\n", token->kind);
 
@@ -379,7 +378,27 @@ Node *primary() {
     // fprintf(stderr, "primary()2 token->kind = %d\n", token->kind);
 
     if (token->kind == TK_IDENT) {
-        return new_node_ident(get_offset());
+        // fprintf(stderr, "TK_IDENT\n");
+        if (consumeToken(token->next, "(")) {
+            // fprintf(stderr, "FUNC\n");
+            Token *func = token;
+            token = token->next;
+            consume("(");
+            func->str[func->len] = '\0';
+            Node *node = new_node_func(func);
+            Node *parent = node;
+            while(!consume(")"))
+            {
+                Node *child = new_node(ND_FUNC, primary(), NULL);
+                parent->rhs = child;
+                parent = child;
+                consume(",");
+            }
+            return node;
+        } else {
+            // fprintf(stderr, "IDENT\n");
+            return new_node_ident(get_offset());
+        }
     }
 
     // fprintf(stderr, "primary()3 token->kind = %d\n", token->kind);
@@ -404,6 +423,7 @@ void gen(Node *node) {
     int LWhileEndNow = LWhileEnd;
     int LForBeginNow = LForBegin;
     int LForEndNow = LForEnd;
+    Node *func = node;
 
     switch (node->kind) {
     case ND_NUM:
@@ -485,6 +505,17 @@ void gen(Node *node) {
             node = node->rhs;
             gen(node->lhs);
         }
+        return;
+    case ND_FUNC:
+        for (int i = 0; node->rhs; i++)
+        {
+            node = node->rhs;
+            gen(node->lhs);
+            printf("  pop rax\n");
+            printf("  mov %s, eax\n", func_args[i]);
+        }
+        printf("  call %s\n", func->str);
+        printf("  push rax\n");
         return;
     }
 

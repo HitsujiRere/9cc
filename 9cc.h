@@ -5,6 +5,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+char *reserved_words[] = {
+    "==",
+    "!=",
+    "<=",
+    ">=",
+};
+
+char *reserved_words_alnum[] = {
+    "return",
+    "if",
+    "else",
+    "while",
+    "for",
+};
+
 // トークンの種類
 typedef enum {
     TK_RESERVED, // 記号
@@ -62,6 +77,7 @@ typedef enum {
     ND_WHILE,  // while
     ND_FOR,    // for
     ND_BLOCK,  // { }
+    ND_FUNC,   // function()
 } NodeKind;
 
 typedef struct Node Node;
@@ -71,8 +87,10 @@ struct Node {
     NodeKind kind; // ノードの型
     Node *lhs;     // 左辺
     Node *rhs;     // 右辺
-    int val;       // kindがND_NUMの場合のみ使う
-    int offset;    // kindがND_LVARの場合のみ使う
+    int val;       // kindがND_NUMの場合は値
+    int offset;    // kindがND_LVARの場合はオフセット
+    char* str;     // kindがND_FUNCの場合は関数名
+    int len;       // kindがND_FUNCの場合はstrの長さ
 };
 
 Node *code[100];
@@ -94,3 +112,12 @@ int LWhileBegin = 0;
 int LWhileEnd = 0;
 int LForBegin = 0;
 int LForEnd = 0;
+
+char* func_args[] = {
+    "edi",
+    "esi",
+    "edx",
+    "ecx",
+    "r8d",
+    "r9d",
+};
