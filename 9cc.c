@@ -145,7 +145,7 @@ Token *tokenize() {
             continue;
         }
 
-        if (strchr("+-*/()<>=;", *p)) {
+        if (strchr("+-*/()<>=;{}", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
@@ -209,6 +209,7 @@ void program() {
 }
 
 // stmt = expr ";"
+//      | "{" stmt* "}"
 //      | "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "while" "(" expr ")" stmt
@@ -216,7 +217,16 @@ void program() {
 Node *stmt() {
     Node *node;
 
-    if (consume("return")) {
+    if (consume("{")) {
+        node = new_node(ND_BLOCK, NULL, NULL);
+        Node *parent = node;
+        while(!consume("}"))
+        {
+            Node *child = new_node(ND_BLOCK, stmt(), NULL);
+            parent->rhs = child;
+            parent = child;
+        }
+    } else if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
         expect(";");
     } else if (consume("if")) {
@@ -468,6 +478,13 @@ void gen(Node *node) {
         gen(node->rhs);
         printf("  jmp .LForBegin%d\n", LForBeginNow);
         printf(".LForEnd%d:\n", LForEndNow);
+        return;
+    case ND_BLOCK:
+        while (node->rhs)
+        {
+            node = node->rhs;
+            gen(node->lhs);
+        }
         return;
     }
 

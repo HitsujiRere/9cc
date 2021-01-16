@@ -75,5 +75,10 @@ assert 55 "b=0;for(a=1;a<=10;a=a+1)b=a+b;return b;"
 assert 30 "b=0;for(a=0;a<20;a=a+1)if(a<10)b=b+1;else b=b+2;return b;"
 assert 36 "a=0;for(x=1;x<=3;x=x+1)for(y=1;y<=3;y=y+1)a=a+x+y;return a;"
 assert 24 "a=0;for(x=1;x<=3;x=x+1)for(y=x;y<=3;y=y+1)a=a+x+y;return a;"
+assert 10 "{10;}"
+assert 10 "{return 10; return 20;}"
+assert 10 "a=7;{}a=10;return a;"
+assert 10 "a=7;{a=10;}return a;"
+assert 233 "f1=1;f2=1;for(i=0;i<11;i=i+1){tmp=f1;f1=f1+f2;f2=tmp;}return f1;"
 
 echo OK
