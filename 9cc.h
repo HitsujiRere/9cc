@@ -60,6 +60,7 @@ typedef enum {
     ND_IF,     // if
     ND_ELSE,   // else
     ND_WHILE,  // while
+    ND_FOR,    // for
 } NodeKind;
 
 typedef struct Node Node;
@@ -90,3 +91,5 @@ int LIfEnd = 0;
 int LElse = 0;
 int LWhileBegin = 0;
 int LWhileEnd = 0;
+int LForBegin = 0;
+int LForEnd = 0;

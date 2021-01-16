@@ -105,16 +105,17 @@ char *reserved_words_alnum[] = {
     "if",
     "else",
     "while",
+    "for",
 };
 
-int reserved_len(char *p)
+int get_reserved_len(char *p)
 {
     for (int i = 0; i < 4; i++) {
         if (!memcmp(p, reserved_words[i], strlen(reserved_words[i]))) {
             return strlen(reserved_words[i]);
         }
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         if (!memcmp(p, reserved_words_alnum[i], strlen(reserved_words_alnum[i]))
             && !is_alnum(p[strlen(reserved_words_alnum[i])])) {
             return strlen(reserved_words_alnum[i]);
@@ -137,10 +138,10 @@ Token *tokenize() {
             continue;
         }
 
-        int reslen = reserved_len(p);
-        if (reslen != 0) {
-            cur = new_token(TK_RESERVED, cur, p, reslen);
-            p += reslen;
+        int reserved_len = get_reserved_len(p);
+        if (reserved_len != 0) {
+            cur = new_token(TK_RESERVED, cur, p, reserved_len);
+            p += reserved_len;
             continue;
         }
 
@@ -240,6 +241,24 @@ Node *stmt() {
         consume(")");
 
         node = new_node(ND_WHILE, condition, stmt());
+    } else if (consume("for")) {
+        consume("(");
+
+        Node *initialize = expr();
+
+        consume(";");
+
+        Node *condition = expr();
+
+        consume(";");
+
+        Node *final = expr();
+
+        consume(")");
+
+        node = new_node(ND_FOR, stmt(), final);
+        node = new_node(ND_FOR, condition, node);
+        node = new_node(ND_FOR, initialize, node);
     } else {
         node = expr();
         expect(";");
@@ -373,6 +392,8 @@ void gen(Node *node) {
     int LElseNow = LElse;
     int LWhileBeginNow = LWhileBegin;
     int LWhileEndNow = LWhileEnd;
+    int LForBeginNow = LForBegin;
+    int LForEndNow = LForEnd;
 
     switch (node->kind) {
     case ND_NUM:
@@ -431,6 +452,22 @@ void gen(Node *node) {
         gen(node->rhs);
         printf("  jmp .LWhileBegin%d\n", LWhileBeginNow);
         printf(".LWhileEnd%d:\n", LWhileEndNow);
+        return;
+    case ND_FOR:
+        LForBegin++;
+        LForEnd++;
+        gen(node->lhs);
+        printf(".LForBegin%d:\n", LForBeginNow);
+        node = node->rhs;
+        gen(node->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je .LForEnd%d\n", LForEndNow);
+        node = node->rhs;
+        gen(node->lhs);
+        gen(node->rhs);
+        printf("  jmp .LForBegin%d\n", LForBeginNow);
+        printf(".LForEnd%d:\n", LForEndNow);
         return;
     }
 

@@ -16,7 +16,7 @@ assert() {
   fi
 }
 
-# assert 0 "0;"
+assert 0 "0;"
 assert 42 "42;"
 assert 21 "5+20-4;"
 assert 41 " 12 + 34 - 5 ;"
@@ -70,5 +70,10 @@ assert 11 "while(1)if(0)return 10;else return 11;return 12;"
 assert 12 "while(0)if(1)return 10;else return 11;return 12;"
 assert 12 "while(0)if(0)return 10;else return 11;return 12;"
 assert 12 "a=3;while(a>=3)if(a<10)a=a+3;else return a;return 3;"
+assert 1 "a=1;for(a=1;a<=3;a=a+1)return a;"
+assert 55 "b=0;for(a=1;a<=10;a=a+1)b=a+b;return b;"
+assert 30 "b=0;for(a=0;a<20;a=a+1)if(a<10)b=b+1;else b=b+2;return b;"
+assert 36 "a=0;for(x=1;x<=3;x=x+1)for(y=1;y<=3;y=y+1)a=a+x+y;return a;"
+assert 24 "a=0;for(x=1;x<=3;x=x+1)for(y=x;y<=3;y=y+1)a=a+x+y;return a;"
 
 echo OK
