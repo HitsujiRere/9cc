@@ -187,12 +187,13 @@ Node *new_node_ident(int offset) {
 
 Node *new_node_func(Token* func) {
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_FUNC;
+    node->kind = ND_CALL;
     node->str = func->str;
     node->len = func->len;
     return node;
 }
 
+// program = stmt*
 void program() {
     locals = calloc(1, sizeof(LVar));
     locals->offset = 0;
@@ -364,7 +365,7 @@ Node* unary() {
 }
 
 // primary = num
-//         | ident ("(" primary* ")")?
+//         | ident ("(" expr* ")")?
 //         | "(" expr ")"
 Node *primary() {
     // fprintf(stderr, "primary()1 token->kind = %d\n", token->kind);
@@ -389,7 +390,7 @@ Node *primary() {
             Node *parent = node;
             while(!consume(")"))
             {
-                Node *child = new_node(ND_FUNC, primary(), NULL);
+                Node *child = new_node(ND_CALL, expr(), NULL);
                 parent->rhs = child;
                 parent = child;
                 consume(",");
@@ -506,7 +507,7 @@ void gen(Node *node) {
             gen(node->lhs);
         }
         return;
-    case ND_FUNC:
+    case ND_CALL:
         for (int i = 0; node->rhs; i++)
         {
             node = node->rhs;

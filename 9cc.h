@@ -77,7 +77,7 @@ typedef enum {
     ND_WHILE,  // while
     ND_FOR,    // for
     ND_BLOCK,  // { }
-    ND_FUNC,   // function()
+    ND_CALL,   // func()
 } NodeKind;
 
 typedef struct Node Node;
@@ -94,6 +94,24 @@ struct Node {
 };
 
 Node *code[100];
+
+// program = stmt*
+// stmt = expr ";"
+//      | "{" stmt* "}"
+//      | "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+// expr = assign
+// assign = equality ("=" assign)?
+// equality = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add = mul ("+" mul | "-" mul)*
+// mul = unary ("*" unary | "/" unary)*
+// unary = ("+" | "-")? primary
+// primary = num
+//         | ident ("(" expr* ")")?
+//         | "(" expr ")"
 
 void program();
 Node *stmt();
