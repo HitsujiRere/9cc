@@ -145,7 +145,7 @@ Token *tokenize() {
             continue;
         }
 
-        if ('a' <= *p && *p <= 'z' || 'A' <= *p && *p <= 'Z') {
+        if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z') || '_' == *p) {
             int i = 1;
             while(is_alnum(*(p + i)))
             {
@@ -164,7 +164,9 @@ Token *tokenize() {
 }
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
-    Node *node = calloc(1, sizeof(Node));
+    fprintf(stderr, "new_node()1 token->kind = %d\n", token->kind);
+    Node *node = malloc(1 * sizeof(Node));
+    fprintf(stderr, "new_node()2 token->kind = %d\n", token->kind);
     node->kind = kind;
     node->lhs = lhs;
     node->rhs = rhs;
@@ -185,25 +187,46 @@ Node *new_node_ident(int offset) {
     return node;
 }
 
-Node *new_node_func(Token* func) {
+Node *new_node_func(Token* func, NodeKind kind) {
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_CALL;
-    node->str = func->str;
+    node->kind = kind;
     node->len = func->len;
+    node->str = calloc(node->len + 1, sizeof(char));
+    strcpy(node->str, func->str);
+    node->str[node->len] = '\0';
     return node;
 }
 
-// program = stmt*
+// program = def*
 void program() {
     locals = calloc(1, sizeof(LVar));
     locals->offset = 0;
 
     int i = 0;
     while(!at_eof()) {
-        // fprintf(stderr, "program() token->kind = %d\n", token->kind);
-        code[i++] = stmt();
+        code[i++] = def();
     }
     code[i] = NULL;
+}
+
+// def = ident "(" (ident ("," ident)*)? ")" stmt
+Node *def() {
+    if (token->kind != TK_IDENT)
+        error_at(token->str, "関数名ではありません");
+    Node *node = new_node_func(token, ND_DEF);
+    token = token->next;
+    consume("(");
+    Node *parent = node;
+    while(!consume(")")) {
+        if (token->kind != TK_IDENT)
+            error_at(token->str, "変数名ではありません");
+        Node *child = new_node(ND_DEF, new_node_ident(get_offset()), NULL);
+        parent->rhs = child;
+        parent = child;
+        consume(",");
+    }
+    parent->rhs = new_node(ND_DEF_C, stmt(), NULL);
+    return node;
 }
 
 // stmt = expr ";"
@@ -213,13 +236,16 @@ void program() {
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt() {
+    fprintf(stderr, "stmt() token->kind = %d\n", token->kind);
+
     Node *node;
 
     if (consume("{")) {
+        fprintf(stderr, "stmt() ND_BLOCK1 token->kind = %d\n", token->kind);
         node = new_node(ND_BLOCK, NULL, NULL);
+        fprintf(stderr, "stmt() ND_BLOCK2 token->kind = %d\n", token->kind);
         Node *parent = node;
-        while(!consume("}"))
-        {
+        while(!consume("}")) {
             Node *child = new_node(ND_BLOCK, stmt(), NULL);
             parent->rhs = child;
             parent = child;
@@ -365,7 +391,7 @@ Node* unary() {
 }
 
 // primary = num
-//         | ident ("(" expr* ")")?
+//         | ident ("(" (expr ("," expr)*)? ")")?
 //         | "(" expr ")"
 Node *primary() {
     // fprintf(stderr, "primary()1 token->kind = %d\n", token->kind);
@@ -382,14 +408,11 @@ Node *primary() {
         // fprintf(stderr, "TK_IDENT\n");
         if (consumeToken(token->next, "(")) {
             // fprintf(stderr, "FUNC\n");
-            Token *func = token;
+            Node *node = new_node_func(token, ND_CALL);
             token = token->next;
             consume("(");
-            func->str[func->len] = '\0';
-            Node *node = new_node_func(func);
             Node *parent = node;
-            while(!consume(")"))
-            {
+            while(!consume(")")) {
                 Node *child = new_node(ND_CALL, expr(), NULL);
                 parent->rhs = child;
                 parent = child;
@@ -501,15 +524,14 @@ void gen(Node *node) {
         printf(".LForEnd%d:\n", LForEndNow);
         return;
     case ND_BLOCK:
-        while (node->rhs)
-        {
+        while (node->rhs) {
             node = node->rhs;
             gen(node->lhs);
         }
+        printf("  pop rax\n");
         return;
     case ND_CALL:
-        for (int i = 0; node->rhs; i++)
-        {
+        for (int i = 0; node->rhs; i++) {
             node = node->rhs;
             gen(node->lhs);
             printf("  pop rax\n");
@@ -517,6 +539,27 @@ void gen(Node *node) {
         }
         printf("  call %s\n", func->str);
         printf("  push rax\n");
+        return;
+    case ND_DEF:
+        printf("%s:\n", node->str);
+        printf("  push rbp\n");
+        printf("  mov rbp, rsp\n");
+        printf("  sub rsp, 208\n");
+
+        for (int i = 0; node->rhs->kind == ND_DEF; i++) {
+            node = node->rhs;
+
+            printf("  mov rax, rbp\n");
+            printf("  sub rax, %d\n", node->offset);
+            printf("  mov [rax], %s\n", func_args[i]);
+        }
+
+        node = node->rhs;
+        gen(node->lhs);
+
+        printf("  mov rsp, rbp\n");
+        printf("  pop rbp\n");
+        printf("  ret\n");
         return;
     }
 
@@ -579,13 +622,13 @@ int main(int argc, char **argv) {
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
-    printf("main:\n");
+    // printf("main:\n");
 
     // プロローグ
     // 変数26個分の領域を確保する
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, 208\n");
+    // printf("  push rbp\n");
+    // printf("  mov rbp, rsp\n");
+    // printf("  sub rsp, 208\n");
 
     // 先頭の式から順にコード生成
     for (int i = 0; code[i]; i++) {
@@ -593,14 +636,14 @@ int main(int argc, char **argv) {
 
         // 式の評価結果としてスタックに一つの値が残っている
         // はずなので、スタックが溢れないようにポップしておく
-        printf("  pop rax\n");
+        // printf("  pop rax\n");
     }
 
     // エピローグ
     // 最後の式の結果がRAXに残っているのでそれが返り値になる
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
+    // printf("  mov rsp, rbp\n");
+    // printf("  pop rbp\n");
+    // printf("  ret\n");
 
     return 0;
 }
