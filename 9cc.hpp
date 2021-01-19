@@ -39,13 +39,14 @@ void error_at(size_t pos, const Args&... args) {
 std::shared_ptr<Token> token;
 
 // program    = define*
-// define     = ident ("(" ident ("," ident)* ")")? stmt
+// define     = "int" ident ("(" "int" ident ("," "int" ident)* ")")? stmt
 // stmt       = expr ";"
-//            | "{" stmt* "}"
 //            | "return" expr ";"
+//            | "{" stmt* "}"
 //            | "if" "(" expr ")" stmt ("else" stmt)?
 //            | "while" "(" expr ")" stmt
 //            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+//            | "int" ident ";"
 // expr       = assign
 // assign     = equality ("=" assign)?
 // equality   = relational ("==" relational | "!=" relational)*

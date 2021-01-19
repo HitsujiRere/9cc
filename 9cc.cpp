@@ -70,13 +70,17 @@ std::shared_ptr<LVar> find_lvar(const std::string& name) {
     return nullptr;
 }
 
+int make_lvar(const std::string& name) {
+    auto lvar = std::shared_ptr<LVar>(new LVar(locals, name, locals->offset + 8));
+    locals = lvar;
+    return lvar->offset;
+}
+
 int get_offset(const std::string& name) {
-    debug("get_offset()0");
     auto lvar = find_lvar(name);
 
     if (lvar == nullptr) {
-        lvar = std::shared_ptr<LVar>(new LVar(locals, name, locals->offset + 8));
-        locals = lvar;
+        error_at(token->pos, "存在しない変数です");
     }
 
     return lvar->offset;
@@ -142,6 +146,10 @@ std::shared_ptr<Node> define() {
 
     std::shared_ptr<Node> node;
 
+    if(!token->reserved("int"))
+        error_at(token->pos, "'int'ではありません");
+    token = token->next;
+
     if(token->kind != TokenKind::IDENT)
         error_at(token->pos, "関数名ではありません");
     node = std::shared_ptr<Node>(new Node(NodeKind::DEFINE, token->str));
@@ -152,17 +160,30 @@ std::shared_ptr<Node> define() {
     token = token->next;
 
     if(!token->reserved(")")) {
-        node->args.push_back(expr());
+        if(!token->reserved("int"))
+            error_at(token->pos, "'int'ではありません");
+        token = token->next;
+
+        if(token->kind != TokenKind::IDENT)
+            error_at(token->pos, "変数名ではありません");
+        node->args.push_back(
+            std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)))
+        );
+        token = token->next;
 
         while(!token->reserved(")")) {
             if(!token->reserved(","))
                 error_at(token->pos, "','ではありません");
             token = token->next;
 
+            if(!token->reserved("int"))
+                error_at(token->pos, "'int'ではありません");
+            token = token->next;
+
             if(token->kind != TokenKind::IDENT)
                 error_at(token->pos, "変数名ではありません");
             node->args.push_back(
-                std::shared_ptr<Node>(new Node(NodeKind::LVAR, get_offset(token->str)))
+                std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)))
             );
             token = token->next;
         }
@@ -274,6 +295,17 @@ std::shared_ptr<Node> stmt() {
         token = token->next;
 
         node->args.push_back(stmt());
+    } else if (token->reserved("int")) {
+        token = token->next;
+
+        if(token->kind != TokenKind::IDENT)
+            error_at(token->pos, "変数名ではありません");
+        node = std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)));
+        token = token->next;
+
+        if (!token->reserved(";"))
+            error_at(token->pos, "';'がありません");
+        token = token->next;
     } else {
         node = expr();
 

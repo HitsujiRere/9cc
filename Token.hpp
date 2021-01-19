@@ -26,6 +26,7 @@ const std::vector<std::string> reserves_ident = {
     "else",
     "while",
     "for",
+    "int",
 };
 
 // トークン型
