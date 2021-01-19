@@ -16,3 +16,7 @@ int multi2(int a) {
 int sum(int a, int b, int c, int d, int e, int f) {
     return a + b + c + d + e + f;
 }
+
+int print2num(int a, int b) {
+    printf("a = %d, b = %d\n", a, b);
+}

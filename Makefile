@@ -1,11 +1,12 @@
-CFLAGS=-std=c11 -g -static -Wall
-SRCS=$(wildcard *.c)
-OBJS=$(SRCS:.c=.o)
+CXX=g++
+CXXFLAGS=-std=c++17 -g -static -Wall
+SRCS=$(wildcard *.cpp)
+OBJS=$(SRCS:.cpp=.o)
 
 9cc: $(OBJS)
-		$(CC) -o 9cc $(OBJS) $(LDFLAGS)
+		$(CXX) -o 9cc $(OBJS) $(CXXFLAGS)
 
-$(OBJS): 9cc.h
+$(OBJS): 9cc.hpp
 
 test: 9cc
 		./test.sh
