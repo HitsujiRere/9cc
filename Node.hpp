@@ -23,6 +23,7 @@ enum class NodeKind {
     WHILE,  // while
     FOR,    // for
     CALL,   // func(...)
+    DEFINE, // func(...) {...}
 };
 
 // 抽象構文木のノードの型

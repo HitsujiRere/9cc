@@ -131,10 +131,47 @@ std::shared_ptr<Node> program() {
     std::shared_ptr<Node> head = std::shared_ptr<Node>(new Node(NodeKind::BLOCK));
 
     while(token->kind != TokenKind::END) {
-        head->args.push_back(stmt());
+        head->args.push_back(define());
     }
 
     return head;
+}
+
+std::shared_ptr<Node> define() {
+    debug("define0");
+
+    std::shared_ptr<Node> node;
+
+    if(token->kind != TokenKind::IDENT)
+        error_at(token->pos, "関数名ではありません");
+    node = std::shared_ptr<Node>(new Node(NodeKind::DEFINE, token->str));
+    token = token->next;
+
+    if(!token->reserved("("))
+        error_at(token->pos, "'('ではありません");
+    token = token->next;
+
+    if(!token->reserved(")")) {
+        node->args.push_back(expr());
+
+        while(!token->reserved(")")) {
+            if(!token->reserved(","))
+                error_at(token->pos, "','ではありません");
+            token = token->next;
+
+            if(token->kind != TokenKind::IDENT)
+                error_at(token->pos, "変数名ではありません");
+            node->args.push_back(
+                std::shared_ptr<Node>(new Node(NodeKind::LVAR, get_offset(token->str)))
+            );
+            token = token->next;
+        }
+    }
+    token = token->next;
+
+    node->args.push_back(stmt());
+
+    return node;
 }
 
 std::shared_ptr<Node> stmt() {
@@ -396,7 +433,6 @@ std::shared_ptr<Node> primary() {
                     node->args.push_back(expr());
                 }
             }
-
             token = token->next;
         } else {
             node = std::shared_ptr<Node>(new Node(NodeKind::LVAR, get_offset(token->str)));
@@ -516,6 +552,32 @@ void gen(std::shared_ptr<Node> node) {
         std::cout << "  call " << node->str << std::endl;
         std::cout << "  push rax" << std::endl;
         return;
+    case NodeKind::DEFINE:
+        std::cout << node->str << ":" << std::endl;
+
+        // 変数26個分の領域を確保する
+        std::cout << "  push rbp" << std::endl;
+        std::cout << "  mov rbp, rsp" << std::endl;
+        std::cout << "  sub rsp, 208" << std::endl;
+
+        for (size_t i = 0; i + 1 < node->args.size(); i++) {
+            gen_lval(node->args.at(i));
+
+            std::cout << "  mov edi, " << func_args.at(i) << std::endl;
+
+            // std::cout << "  pop rdi" << std::endl;
+            std::cout << "  pop rax" << std::endl;
+            std::cout << "  mov [rax], rdi" << std::endl;
+            std::cout << "  push rdi" << std::endl;
+        }
+
+        gen(node->args.back());
+
+        std::cout << "  mov rsp, rbp" << std::endl;
+        std::cout << "  pop rbp" << std::endl;
+
+        std::cout << "  ret" << std::endl;
+        return;
     }
 
     gen(node->lhs);
@@ -585,19 +647,7 @@ int main(int argc, char **argv) {
 
     std::cout << ".intel_syntax noprefix" << std::endl;
     std::cout << ".globl main" << std::endl;
-    std::cout << "main:" << std::endl;
-
-    // 変数26個分の領域を確保する
-    std::cout << "  push rbp" << std::endl;
-    std::cout << "  mov rbp, rsp" << std::endl;
-    std::cout << "  sub rsp, 208" << std::endl;
-
     gen(node);
-
-    std::cout << "  mov rsp, rbp" << std::endl;
-    std::cout << "  pop rbp" << std::endl;
-
-    std::cout << "  ret" << std::endl;
 
     return 0;
 }

@@ -38,7 +38,8 @@ void error_at(size_t pos, const Args&... args) {
 // 現在着目しているトークン
 std::shared_ptr<Token> token;
 
-// program    = stmt*
+// program    = define*
+// define     = ident ("(" ident ("," ident)* ")")? stmt
 // stmt       = expr ";"
 //            | "return" expr ";"
 //            | "{" stmt* "}"
@@ -53,10 +54,11 @@ std::shared_ptr<Token> token;
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
 // primary    = num
-//            | ident ("(" expr ("," expr)* ")")*
+//            | ident ("(" expr ("," expr)* ")")?
 //            | "(" expr ")"
 
 std::shared_ptr<Node> program();
+std::shared_ptr<Node> define();
 std::shared_ptr<Node> stmt();
 std::shared_ptr<Node> expr();
 std::shared_ptr<Node> assign();
