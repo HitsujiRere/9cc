@@ -103,5 +103,7 @@ assert 0 "foo(){a=0;}ari(n){if(n==0)return 0;return ari(n-1)+n;} main(){return a
 assert 1 "ari(n){if(n==0)return 0;return ari(n-1)+n;} main(){return ari(1);}"
 assert 3 "ari(n){if(n==0)return 0;return ari(n-1)+n;} main(){return ari(2);}"
 assert 55 "ari(n){if(n==0)return 0;return ari(n-1)+n;} main(){return ari(10);}"
+assert 3 "main() { x = 3; y = &x; return *y; }"
+assert 3 "main() { x = 3; y = 5; z = &y + 8; return *z; }"
 
 echo OK

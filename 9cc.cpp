@@ -401,6 +401,16 @@ std::shared_ptr<Node> unary() {
         ));
     }
 
+    if (token->reserved("*")) {
+        token = token->next;
+        return std::shared_ptr<Node>(new Node(NodeKind::DEREF, primary(), nullptr));
+    }
+
+    if (token->reserved("&")) {
+        token = token->next;
+        return std::shared_ptr<Node>(new Node(NodeKind::ADDR, primary(), nullptr));
+    }
+
     return primary();
 }
 
@@ -467,23 +477,23 @@ void gen(std::shared_ptr<Node> node) {
 
     switch(node->kind) {
     case NodeKind::NOP:
-        return;
+        break;
     case NodeKind::NUM:
         std::cout << "  push " << node->val << std::endl;
-        return;
+        break;
     case NodeKind::BLOCK:
         for (auto arg : node->args) {
             gen(arg);
             if (arg->kind != NodeKind::BLOCK)
                 std::cout << "  pop rax" << std::endl;
         }
-        return;
+        break;
     case NodeKind::LVAR:
         gen_lval(node);
         std::cout << "  pop rax" << std::endl;
         std::cout << "  mov rax, [rax]" << std::endl;
         std::cout << "  push rax" << std::endl;
-        return;
+        break;
     case NodeKind::ASSIGN:
         gen_lval(node->lhs);
         gen(node->rhs);
@@ -491,14 +501,14 @@ void gen(std::shared_ptr<Node> node) {
         std::cout << "  pop rax" << std::endl;
         std::cout << "  mov [rax], rdi" << std::endl;
         std::cout << "  push rdi" << std::endl;
-        return;
+        break;
     case NodeKind::RETURN:
         gen(node->lhs);
         std::cout << "  pop rax" << std::endl;
         std::cout << "  mov rsp, rbp" << std::endl;
         std::cout << "  pop rbp" << std::endl;
         std::cout << "  ret" << std::endl;
-        return;
+        break;
     case NodeKind::IF:
         LIf++;
         gen(node->args.at(0));
@@ -516,7 +526,7 @@ void gen(std::shared_ptr<Node> node) {
             gen(node->args.at(2));
             std::cout << ".LIfEnd" << LIfNow << ":" << std::endl;
         }
-        return;
+        break;
     case NodeKind::WHILE:
         LWhile++;
         std::cout << ".LWhileBegin" << LWhileNow << ":" << std::endl;
@@ -527,7 +537,7 @@ void gen(std::shared_ptr<Node> node) {
         gen(node->args.at(1));
         std::cout << "  jmp .LWhileBegin" << LWhileNow << std::endl;
         std::cout << ".LWhileEnd" << LWhileNow << ":" << std::endl;
-        return;
+        break;
     case NodeKind::FOR:
         LFor++;
         gen(node->args.at(0));
@@ -540,7 +550,7 @@ void gen(std::shared_ptr<Node> node) {
         gen(node->args.at(2));
         std::cout << "  jmp .LForBegin" << LForNow << std::endl;
         std::cout << ".LForEnd" << LForNow << ":" << std::endl;
-        return;
+        break;
     case NodeKind::CALL:
         for (size_t i = 0; i < node->args.size(); i++) {
             auto arg = node->args.at(i);
@@ -551,7 +561,7 @@ void gen(std::shared_ptr<Node> node) {
         }
         std::cout << "  call " << node->str << std::endl;
         std::cout << "  push rax" << std::endl;
-        return;
+        break;
     case NodeKind::DEFINE:
         std::cout << node->str << ":" << std::endl;
 
@@ -577,52 +587,90 @@ void gen(std::shared_ptr<Node> node) {
         std::cout << "  pop rbp" << std::endl;
 
         std::cout << "  ret" << std::endl;
-        return;
-    }
-
-    gen(node->lhs);
-    gen(node->rhs);
-
-    std::cout << "  pop rdi" << std::endl;
-    std::cout << "  pop rax" << std::endl;
-
-    switch (node->kind) {
+        break;
+    case NodeKind::ADDR:
+        gen_lval(node->lhs);
+        break;
+    case NodeKind::DEREF:
+        gen(node->lhs);
+        std::cout << "  pop rax" << std::endl;
+        std::cout << "  mov rax, [rax]" << std::endl;
+        std::cout << "  push rax" << std::endl;
+        break;
     case NodeKind::ADD:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  add rax, rdi" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::SUB:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  sub rax, rdi" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::MUL:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  imul rax, rdi" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::DIV:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  cqo" << std::endl;
         std::cout << "  idiv rdi" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::EQ:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  cmp rax, rdi" << std::endl;
         std::cout << "  sete al" << std::endl;
         std::cout << "  movzb rax, al" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::NEQ:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  cmp rax, rdi" << std::endl;
         std::cout << "  setne al" << std::endl;
         std::cout << "  movzb rax, al" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::LT:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  cmp rax, rdi" << std::endl;
         std::cout << "  setl al" << std::endl;
         std::cout << "  movzb rax, al" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     case NodeKind::LEQ:
+        gen(node->lhs);
+        gen(node->rhs);
+        std::cout << "  pop rdi" << std::endl;
+        std::cout << "  pop rax" << std::endl;
         std::cout << "  cmp rax, rdi" << std::endl;
         std::cout << "  setle al" << std::endl;
         std::cout << "  movzb rax, al" << std::endl;
+        std::cout << "  push rax" << std::endl;
         break;
     }
-
-    std::cout << "  push rax" << std::endl;
 }
 
 int main(int argc, char **argv) {

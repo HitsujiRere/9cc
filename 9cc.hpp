@@ -41,8 +41,8 @@ std::shared_ptr<Token> token;
 // program    = define*
 // define     = ident ("(" ident ("," ident)* ")")? stmt
 // stmt       = expr ";"
-//            | "return" expr ";"
 //            | "{" stmt* "}"
+//            | "return" expr ";"
 //            | "if" "(" expr ")" stmt ("else" stmt)?
 //            | "while" "(" expr ")" stmt
 //            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -52,7 +52,11 @@ std::shared_ptr<Token> token;
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-")? primary
+// unary      = primary
+//            | "+" primary
+//            | "-" primary
+//            | "*" primary
+//            | "&" primary
 // primary    = num
 //            | ident ("(" expr ("," expr)* ")")?
 //            | "(" expr ")"
