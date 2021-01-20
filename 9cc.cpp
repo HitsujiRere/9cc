@@ -1,6 +1,6 @@
 #include "9cc.hpp"
 
-#define debug(val) if (debug_mode) { std::cerr << #val << " : " << val << std::endl; }
+#define debug(val) if (debug_mode) { std::cerr << "# " << #val << " : " << val << std::endl; }
 
 size_t search_int(const std::string::iterator& itr) {
     size_t len = 0;
@@ -70,8 +70,8 @@ std::shared_ptr<LVar> find_lvar(const std::string& name) {
     return nullptr;
 }
 
-int make_lvar(const std::string& name) {
-    auto lvar = std::shared_ptr<LVar>(new LVar(locals, name, locals->offset + 8));
+int make_lvar(const std::string& name, std::shared_ptr<Type> type) {
+    auto lvar = std::shared_ptr<LVar>(new LVar(locals, name, locals->offset + 8, type));
     locals = lvar;
     return lvar->offset;
 }
@@ -130,6 +130,22 @@ std::shared_ptr<Token> tokenize() {
     return head->next;
 }
 
+std::shared_ptr<Type> get_type() {
+    std::shared_ptr<Type> type;
+
+    if(!token->reserved("int"))
+        return nullptr;
+    type = std::shared_ptr<Type>(new Type(TypeKind::INT));
+    token = token->next;
+
+    while(token->reserved("*")) {
+        type = std::shared_ptr<Type>(new Type(TypeKind::PTR, type));
+        token = token->next;
+    }
+
+    return type;
+}
+
 std::shared_ptr<Node> program() {
     debug("program0");
     std::shared_ptr<Node> head = std::shared_ptr<Node>(new Node(NodeKind::BLOCK));
@@ -146,9 +162,10 @@ std::shared_ptr<Node> define() {
 
     std::shared_ptr<Node> node;
 
-    if(!token->reserved("int"))
+    locals = std::shared_ptr<LVar>(new LVar());
+
+    if(get_type() == nullptr)
         error_at(token->pos, "'int'ではありません");
-    token = token->next;
 
     if(token->kind != TokenKind::IDENT)
         error_at(token->pos, "関数名ではありません");
@@ -160,15 +177,16 @@ std::shared_ptr<Node> define() {
     token = token->next;
 
     if(!token->reserved(")")) {
-        if(!token->reserved("int"))
+        auto type = get_type();
+        if(type == nullptr)
             error_at(token->pos, "'int'ではありません");
-        token = token->next;
 
         if(token->kind != TokenKind::IDENT)
             error_at(token->pos, "変数名ではありません");
-        node->args.push_back(
-            std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)))
-        );
+        node->args.push_back(std::shared_ptr<Node>(new Node(
+            NodeKind::LVAR, 
+            make_lvar(token->str, type)
+        )));
         token = token->next;
 
         while(!token->reserved(")")) {
@@ -176,14 +194,14 @@ std::shared_ptr<Node> define() {
                 error_at(token->pos, "','ではありません");
             token = token->next;
 
-            if(!token->reserved("int"))
+            auto type = get_type();
+            if(type == nullptr)
                 error_at(token->pos, "'int'ではありません");
-            token = token->next;
 
             if(token->kind != TokenKind::IDENT)
                 error_at(token->pos, "変数名ではありません");
             node->args.push_back(
-                std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)))
+                std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str, type)))
             );
             token = token->next;
         }
@@ -296,11 +314,11 @@ std::shared_ptr<Node> stmt() {
 
         node->args.push_back(stmt());
     } else if (token->reserved("int")) {
-        token = token->next;
+        auto type = get_type();
 
         if(token->kind != TokenKind::IDENT)
             error_at(token->pos, "変数名ではありません");
-        node = std::shared_ptr<Node>(new Node(NodeKind::LVAR, make_lvar(token->str)));
+        node = std::shared_ptr<Node>(new Node(NodeKind::LET, make_lvar(token->str, type)));
         token = token->next;
 
         if (!token->reserved(";"))
@@ -435,12 +453,12 @@ std::shared_ptr<Node> unary() {
 
     if (token->reserved("*")) {
         token = token->next;
-        return std::shared_ptr<Node>(new Node(NodeKind::DEREF, primary(), nullptr));
+        return std::shared_ptr<Node>(new Node(NodeKind::DEREF, unary(), nullptr));
     }
 
     if (token->reserved("&")) {
         token = token->next;
-        return std::shared_ptr<Node>(new Node(NodeKind::ADDR, primary(), nullptr));
+        return std::shared_ptr<Node>(new Node(NodeKind::ADDR, unary(), nullptr));
     }
 
     return primary();
@@ -491,17 +509,19 @@ std::shared_ptr<Node> primary() {
 }
 
 void gen_lval(std::shared_ptr<Node> node) {
-    if (node->kind != NodeKind::LVAR)
+    if (node->kind == NodeKind::LVAR) {
+        std::cout << "  mov rax, rbp" << std::endl;
+        std::cout << "  sub rax, " << node->val << std::endl;
+        std::cout << "  push rax" << std::endl;
+    } else if (node->kind == NodeKind::DEREF) {
+        gen(node->lhs);
+    } else {
         error_at(0, "代入の左辺値が変数ではありません");
-
-    std::cout << "  mov rax, rbp" << std::endl;
-    std::cout << "  sub rax, " << node->val << std::endl;
-    std::cout << "  push rax" << std::endl;
+    }
 }
 
 void gen(std::shared_ptr<Node> node) {
-    debug("gen()0");
-    debug((int)node->kind);
+    debug(node->kind);
 
     int LIfNow = LIf;
     int LWhileNow = LWhile;
@@ -516,7 +536,7 @@ void gen(std::shared_ptr<Node> node) {
     case NodeKind::BLOCK:
         for (auto arg : node->args) {
             gen(arg);
-            if (arg->kind != NodeKind::BLOCK)
+            if (arg->kind != NodeKind::BLOCK && arg->kind != NodeKind::NOP)
                 std::cout << "  pop rax" << std::endl;
         }
         break;
@@ -629,6 +649,9 @@ void gen(std::shared_ptr<Node> node) {
         std::cout << "  mov rax, [rax]" << std::endl;
         std::cout << "  push rax" << std::endl;
         break;
+    case NodeKind::LET:
+        std::cout << "  push " << node->val << std::endl;
+        break;
     case NodeKind::ADD:
         gen(node->lhs);
         gen(node->rhs);
@@ -719,8 +742,6 @@ int main(int argc, char **argv) {
 
     code = std::string(argv[1]);
     code_itr = code.begin();
-
-    locals = std::shared_ptr<LVar>(new LVar());
 
     token = tokenize();
     auto node = program();

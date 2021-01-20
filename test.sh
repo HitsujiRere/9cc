@@ -19,12 +19,6 @@ assert() {
   fi
 }
 
-assert 7 "int main() { int a; a = 10; a = a - 3; return a; }"
-assert 30 "int ret30() { return 30; } int main() { return ret30(); }"
-assert 18 "int calc(int a, int b) { return a*2+b; } int main() { return calc(7, 4); }"
-
-# exit
-
 assert 13 "int main(){13;}"
 assert 5 "int main(){3+2;}"
 assert 2 "int main(){9-7;}"
@@ -109,7 +103,11 @@ assert 0 "int ari(int n){if(n==0)return 0;return ari(n-1)+n;} int main(){return 
 assert 1 "int ari(int n){if(n==0)return 0;return ari(n-1)+n;} int main(){return ari(1);}"
 assert 3 "int ari(int n){if(n==0)return 0;return ari(n-1)+n;} int main(){return ari(2);}"
 assert 55 "int ari(int n){if(n==0)return 0;return ari(n-1)+n;} int main(){return ari(10);}"
-assert 3 "int main() { int x; int y; x = 3; y = &x; return *y; }"
-assert 3 "int main() { int x; int y; int z; x = 3; y = 5; z = &y + 8; return *z; }"
+assert 10 "int main() { int x; int *y; y = &x; x = 10; return *y; }"
+assert  3 "int main() { int x; int *y; y = &x; x = 10; *y = 3; return x; }"
+assert 10 "int main() { int x; int *y; int **z; z = &y; y = &x; x = 10; return **z; }"
+assert  3 "int main() { int x; int *y; int **z; z = &y; y = &x; x = 10; **z = 3; return x; }"
+assert  3 "int main() { int x; int *y; x = 3; y = &x; return *y; }"
+assert  3 "int main() { int x; int y; int *z; x = 3; y = 5; z = &y + 8; return *z; }"
 
 echo OK

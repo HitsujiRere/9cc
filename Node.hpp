@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <ostream>
 
 // 抽象構文木のノードの種類
 enum class NodeKind {
@@ -26,7 +27,10 @@ enum class NodeKind {
     DEFINE, // func(...) ...
     ADDR,   // &
     DEREF,  // *var
+    LET,    // int var
 };
+
+std::ostream& operator<<(std::ostream& out, const NodeKind& kind);
 
 // 抽象構文木のノードの型
 struct Node {

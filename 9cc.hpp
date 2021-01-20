@@ -8,6 +8,7 @@
 #include "Token.hpp"
 #include "Node.hpp"
 #include "LVar.hpp"
+#include "Type.hpp"
 
 bool debug_mode = false;
 
@@ -39,14 +40,14 @@ void error_at(size_t pos, const Args&... args) {
 std::shared_ptr<Token> token;
 
 // program    = define*
-// define     = "int" ident ("(" "int" ident ("," "int" ident)* ")")? stmt
+// define     = type ident ("(" type ident ("," type ident)* ")")? stmt
 // stmt       = expr ";"
 //            | "return" expr ";"
 //            | "{" stmt* "}"
 //            | "if" "(" expr ")" stmt ("else" stmt)?
 //            | "while" "(" expr ")" stmt
 //            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-//            | "int" ident ";"
+//            | type ident ";"
 // expr       = assign
 // assign     = equality ("=" assign)?
 // equality   = relational ("==" relational | "!=" relational)*
@@ -56,11 +57,12 @@ std::shared_ptr<Token> token;
 // unary      = primary
 //            | "+" primary
 //            | "-" primary
-//            | "*" primary
-//            | "&" primary
+//            | "*" unary
+//            | "&" unary
 // primary    = num
 //            | ident ("(" expr ("," expr)* ")")?
 //            | "(" expr ")"
+// type       = "int" "*"*
 
 std::shared_ptr<Node> program();
 std::shared_ptr<Node> define();
@@ -73,6 +75,9 @@ std::shared_ptr<Node> add();
 std::shared_ptr<Node> mul();
 std::shared_ptr<Node> unary();
 std::shared_ptr<Node> primary();
+
+void gen_lval(std::shared_ptr<Node> node);
+void gen(std::shared_ptr<Node> node);
 
 // ローカル変数
 std::shared_ptr<LVar> locals;

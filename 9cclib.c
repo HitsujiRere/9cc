@@ -19,4 +19,10 @@ int sum(int a, int b, int c, int d, int e, int f) {
 
 int print2num(int a, int b) {
     printf("a = %d, b = %d\n", a, b);
+    return 0;
+}
+
+int out(int n) {
+    printf("%d\n", n);
+    return 0;
 }
